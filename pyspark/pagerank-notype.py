@@ -88,7 +88,11 @@ if __name__ == "__main__":
         # Re-calculates URL ranks based on neighbor contributions.
         ranks = contribs.reduceByKey(add).mapValues(lambda rank: rank * 0.85 + 0.15)
     print("###################")
-    print(f"Execution time: {time.time() - start_time}")
+    print(f"Execution time (pagerank): {time.time() - start_time}")
+
+    ranks.saveAsTextFile("gs://x3ia020-pagerank/out/pyspark_pagerank_data")
+
+    print(f"Execution time (pagerank + save to disk): {time.time() - start_time}")
 
     # Collects all URL ranks and dump them to console.
     #for (link, rank) in ranks.collect():
