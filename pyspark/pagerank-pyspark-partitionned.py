@@ -26,38 +26,42 @@ import re
 import sys
 from operator import add
 from typing import Iterable, Tuple
+import time
 
 from pyspark.resultiterable import ResultIterable
 from pyspark.sql import SparkSession
 
 
-def computeContribs(urls: ResultIterable[str], rank: float) -> Iterable[Tuple[str, float]]:
+# removed typing for compatibility with Spark 3.1.3
+# typing ok with spark 3.3.0
+
+def computeContribs(urls, rank) :
     """Calculates URL contributions to the rank of other URLs."""
     num_urls = len(urls)
     for url in urls:
         yield (url, rank / num_urls)
 
 
-def parseNeighbors(urls: str) -> Tuple[str, str]:
+def parseNeighbors(urls) :
     """Parses a urls pair string into urls pair."""
     parts = re.split(r'\s+', urls)
     return parts[0], parts[2]
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: pagerank <file> <iterations>", file=sys.stderr)
-        sys.exit(-1)
+    start_time = time.time()
 
-    print("WARN: This is a naive implementation of PageRank and is given as an example!\n" +
-          "Please refer to PageRank implementation provided by graphx",
-          file=sys.stderr)
+    if len(sys.argv) != 4:
+        print("Usage: pagerank-pyspark-partitionned <file> <iterations> <partitions>", file=sys.stderr)
+        sys.exit(-1)
 
     # Initialize the spark context.
     spark = SparkSession\
         .builder\
         .appName("PythonPageRank")\
         .getOrCreate()
+
+    partitions = int(sys.argv[3])
 
     # Loads in input file. It should be in format of:
     #     URL         neighbor URL
@@ -67,10 +71,12 @@ if __name__ == "__main__":
     lines = spark.read.text(sys.argv[1]).rdd.map(lambda r: r[0])
 
     # Loads all URLs from input file and initialize their neighbors.
-    links = lines.map(lambda urls: parseNeighbors(urls)).distinct().groupByKey().cache()
+    links = lines.map(lambda urls: parseNeighbors(urls)).distinct(
+    ).groupByKey().partitionBy(partitions).cache()
 
     # Loads all URLs with other URL(s) link to from input file and initialize ranks of them to one.
-    ranks = links.map(lambda url_neighbors: (url_neighbors[0], 1.0))
+    ranks = links.map(lambda url_neighbors: (
+        url_neighbors[0], 1.0)).partitionBy(partitions)
 
     # Calculates and updates URL ranks continuously using PageRank algorithm.
     for iteration in range(int(sys.argv[2])):
@@ -80,7 +86,14 @@ if __name__ == "__main__":
         ))
 
         # Re-calculates URL ranks based on neighbor contributions.
-        ranks = contribs.reduceByKey(add).mapValues(lambda rank: rank * 0.85 + 0.15)
+        ranks = contribs.reduceByKey(add).mapValues(
+            lambda rank: rank * 0.85 + 0.15).partitionBy(partitions).cache()
+    print("###################")
+    print(f"Execution time (pagerank): {time.time() - start_time}")
+
+    ranks.saveAsTextFile("gs://x3ia020-pagerank/out/pyspark_pagerank_data")
+
+    print(f"Execution time (pagerank + save to disk): {time.time() - start_time}")
 
     # Collects all URL ranks and dump them to console.
     #for (link, rank) in ranks.collect():

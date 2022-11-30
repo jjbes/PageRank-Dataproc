@@ -52,7 +52,7 @@ if __name__ == "__main__":
     start_time = time.time()
 
     if len(sys.argv) != 3:
-        print("Usage: pagerank <file> <iterations>", file=sys.stderr)
+        print("Usage: pagerank-pyspark <file> <iterations>", file=sys.stderr)
         sys.exit(-1)
 
     print("WARN: This is a naive implementation of PageRank and is given as an example!\n" +
