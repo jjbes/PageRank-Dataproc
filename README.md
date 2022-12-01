@@ -10,7 +10,7 @@
 **3 iterations PageRank for page_links_en.nt.bz2**
 | Workers | Pig (in seconds) | Pyspark (in seconds) | Pyspark with 100 partitions (in seconds) |
 |---------|---------------|--------------------|--------------------|
-| 0       | 5802.1190002  | error (crashes around 3240) | TODO |
+| 0       | 5802.1190002  | error | error | 
 | 2       | 2835.23799992 | 2653.8885538578033 | 1906.3919332027435 |
 | 4       | 2115.25399995 | 1725.1335825920105 | 1323.3430573940277 |
 
